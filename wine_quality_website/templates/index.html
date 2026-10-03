@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VinoSense — Wine Quality Predictor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="brand"><span class="grape">🍇</span> VinoSense</div>
+  <nav><a href="#predictor">Predict</a><a href="#analytics">Analytics</a><a href="#method">Method</a><a href="#about">About</a></nav>
+</header>
+
+<section class="hero">
+  <div class="hero-copy">
+    <span class="eyebrow">DATA SCIENCE PROJECT • RANDOM FOREST</span>
+    <h1>Predict the <em>quality</em> of wine.</h1>
+    <p>An interactive machine-learning dashboard built around a Random Forest classifier trained on physicochemical wine measurements.</p>
+    <a class="cta" href="#predictor">Try the predictor ↓</a>
+  </div>
+  <div class="hero-card">
+    <div class="glass">🍷</div>
+    <div class="score-label">QUALITY RANGE</div>
+    <div class="score">3 — 8</div>
+    <div class="muted">dataset quality scores</div>
+  </div>
+</section>
+
+<section class="stats">
+  <div><strong>{{ stats.rows }}</strong><span>Wine samples</span></div>
+  <div><strong>{{ stats.features }}</strong><span>Input features</span></div>
+  <div><strong>15</strong><span>Model features</span></div>
+  <div><strong>6</strong><span>Quality classes</span></div>
+</section>
+
+<section id="predictor" class="section">
+  <div class="section-head">
+    <span class="eyebrow">LIVE PREDICTION</span>
+    <h2>Wine Quality Predictor</h2>
+    <p>Enter the wine's laboratory measurements. The website applies the project's preprocessing and sends the resulting 15-feature vector to your saved Random Forest model.</p>
+  </div>
+
+  <form id="predictForm" class="predict-grid">
+    <div class="fields">
+      <label>Fixed acidity <input name="fixed_acidity" type="number" step="0.01" value="7.4"></label>
+      <label>Volatile acidity <input name="volatile_acidity" type="number" step="0.001" value="0.70"></label>
+      <label>Citric acid <input name="citric_acid" type="number" step="0.01" value="0.00"></label>
+      <label>Residual sugar <input name="residual_sugar" type="number" step="0.1" value="1.9"></label>
+      <label>Chlorides <input name="chlorides" type="number" step="0.001" value="0.076"></label>
+      <label>Free sulfur dioxide <input name="free_sulfur_dioxide" type="number" step="0.1" value="11"></label>
+      <label>Total sulfur dioxide <input name="total_sulfur_dioxide" type="number" step="0.1" value="34"></label>
+      <label>Density <input name="density" type="number" step="0.0001" value="0.9978"></label>
+      <label>pH <input name="ph" type="number" step="0.01" value="3.51"></label>
+      <label>Sulphates <input name="sulphates" type="number" step="0.01" value="0.56"></label>
+      <label>Alcohol (%) <input name="alcohol" type="number" step="0.1" value="9.4"></label>
+      <button class="predict-btn" type="submit">Predict quality ✦</button>
+    </div>
+
+    <div id="result" class="result-card">
+      <div class="result-placeholder">
+        <div class="big-icon">🔬</div>
+        <h3>Ready to analyze</h3>
+        <p>Submit the measurements to see the predicted quality and class probabilities.</p>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section id="analytics" class="section dark">
+  <div class="section-head">
+    <span class="eyebrow">DATASET INSIGHTS</span>
+    <h2>Explore the data</h2>
+    <p>The dashboard summarizes the original 1,143-row dataset supplied for this project.</p>
+  </div>
+  <div class="charts">
+    <div class="chart-card"><h3>Quality distribution</h3><canvas id="qualityChart"></canvas></div>
+    <div class="chart-card"><h3>Average alcohol by quality</h3><canvas id="alcoholChart"></canvas></div>
+    <div class="chart-card"><h3>Average volatile acidity</h3><canvas id="volatileChart"></canvas></div>
+  </div>
+</section>
+
+<section id="method" class="section">
+  <div class="section-head"><span class="eyebrow">MACHINE LEARNING PIPELINE</span><h2>How it works</h2></div>
+  <div class="steps">
+    <div><b>01</b><h3>Input</h3><p>Eleven physicochemical measurements are entered by the user.</p></div>
+    <div><b>02</b><h3>Preprocess</h3><p>IQR-based outlier capping and standardization are applied.</p></div>
+    <div><b>03</b><h3>Engineer</h3><p>Four additional features are calculated: bound SO₂, acidity ratio, alcohol-density and sugar-alcohol.</p></div>
+    <div><b>04</b><h3>Predict</h3><p>Your saved Random Forest model predicts a quality class from 3 to 8.</p></div>
+  </div>
+</section>
+
+<section id="about" class="about">
+  <div><span class="eyebrow">COLLEGE DATA SCIENCE PROJECT</span><h2>Wine Quality Prediction</h2>
+  <p>Designed as an interactive presentation layer for a machine-learning project. Replace this text with your name, college, department, guide and project-year details.</p>
+</section>
+
+<footer>VinoSense • Random Forest Wine Quality Prediction</footer>
+
+<script>
+const stats = {{ stats|tojson }};
+
+function chart(id, labels, data, title) {
+  new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: title, data, borderRadius: 8 }] },
+    options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+  });
+}
+const labels = Object.keys(stats.quality_counts);
+chart('qualityChart', labels, Object.values(stats.quality_counts), 'Samples');
+chart('alcoholChart', labels, Object.values(stats.avg_alcohol), 'Alcohol');
+chart('volatileChart', labels, Object.values(stats.avg_volatile), 'Volatile acidity');
+
+document.getElementById('predictForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const result = document.getElementById('result');
+  result.innerHTML = '<div class="loading">Analyzing sample…</div>';
+  const res = await fetch('/predict', {method:'POST', body:new FormData(e.target)});
+  const data = await res.json();
+  if (data.error) {
+    result.innerHTML = '<div class="error">Could not predict: '+data.error+'</div>';
+    return;
+  }
+  const q = data.prediction;
+  const entries = Object.entries(data.probabilities);
+  result.innerHTML = `
+    <div class="result-top"><span>PREDICTED QUALITY</span><strong>${q}</strong></div>
+    <div class="quality-name">${q >= 7 ? 'High quality' : q >= 5 ? 'Good / average quality' : 'Lower quality range'}</div>
+    <div class="prob-title">Model confidence by class</div>
+    ${entries.map(([k,v])=>`<div class="prob"><span>Quality ${k}</span><div><i style="width:${v}%"></i></div><b>${v}%</b></div>`).join('')}
+  `;
+});
+</script>
+</body>
+</html>
